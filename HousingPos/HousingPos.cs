@@ -11,7 +11,6 @@ using System.Runtime.InteropServices;
 using Dalamud.Game;
 using Dalamud.Hooking;
 using HousingPos.Gui;
-using ImGuiScene;
 using Dalamud.IoC;
 using Dalamud.Game.ClientState;
 using Dalamud.Data;
@@ -56,8 +55,6 @@ namespace HousingPos
         public static IPluginLog PluginLog { get; private set; }
         [PluginService]
         public static ITextureProvider Tex { get; private set; }
-        [PluginService]
-        public static IGameNetwork Network { get; private set; }
         [PluginService]
         public static ICondition Condition { get; private set; }
 
