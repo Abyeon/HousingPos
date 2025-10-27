@@ -1,4 +1,4 @@
-﻿<Project Sdk="Dalamud.CN.NET.Sdk/13.1.0">
+﻿<Project Sdk="Dalamud.NET.Sdk/13.1.0">
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <OutputType>Library</OutputType>
@@ -6,7 +6,7 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="DalamudPackager" Version="13.0.0" />
+<!--    <PackageReference Include="DalamudPackager" Version="13.0.0" />-->
     <PackageReference Include="IndexRange" Version="1.0.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="SharpDX" Version="4.2.0" />
@@ -20,7 +20,7 @@
     <PackageReference Include="System.Numerics.Vectors" Version="4.4.0" />
     <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="4.5.2" />
   </ItemGroup>
-  <PropertyGroup>
-    <DalamudLibPath>$(appdata)\XIVLauncherCN\addon\Hooks\dev\</DalamudLibPath>
-  </PropertyGroup>
+<!--  <PropertyGroup>-->
+<!--    <DalamudLibPath>$(appdata)\XIVLauncherCN\addon\Hooks\dev\</DalamudLibPath>-->
+<!--  </PropertyGroup>-->
 </Project>
