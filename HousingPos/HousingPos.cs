@@ -17,7 +17,7 @@ namespace HousingPos
 {
     public class HousingPos : IDalamudPlugin
     {
-        public string Name => "HousingPos";
+        public static string Name => "HousingPos";
         private PluginUi Gui { get; set; }
         public Configuration Config { get; private set; }
 
@@ -26,30 +26,28 @@ namespace HousingPos
         [PluginService] public static ISigScanner SigScanner { get; private set; } = null!;
         [PluginService] public static IDalamudPluginInterface Interface { get; private set; } = null!;
         [PluginService] public static IGameGui GameGui { get; private set; } = null!;
-        [PluginService] public static IChatGui ChatGui { get; private set; } = null!;
+        [PluginService] private static IChatGui ChatGui { get; set; } = null!;
         [PluginService] public static IClientState ClientState { get; private set; } = null!;
         [PluginService] public static IDataManager Data { get; private set; } = null!;
-        [PluginService] public static ISigScanner Scanner { get; private set; } = null!;
-        [PluginService] public static IGameInteropProvider Hook { get; private set; } = null!;
-        [PluginService] public static IPluginLog PluginLog { get; private set; } = null!;
+        [PluginService] private static ISigScanner Scanner { get; set; } = null!;
+        [PluginService] private static IGameInteropProvider Hook { get; set; } = null!;
+        [PluginService] private static IPluginLog PluginLog { get; set; } = null!;
         [PluginService] public static ITextureProvider Tex { get; private set; } = null!;
-        [PluginService] public static ICondition Condition { get; private set; } = null!;
+        [PluginService] private static ICondition Condition { get; set; } = null!;
 
         private readonly Localizer _localizer;
 
         // Texture dictionary for the housing item icons.
         // public readonly Dictionary<ushort, TextureWrap> TextureDictionary = new Dictionary<ushort, TextureWrap>();
         
-        private List<HousingItem> _housingItemList = new List<HousingItem>();
-        private readonly List<int> _previewPages = new List<int>();
+        private List<HousingItem> _housingItemList = [];
+        private readonly List<int> _previewPages = [];
         
-        public int PreviewTerritory = 0;
+        public int PreviewTerritory;
 
-        private IntPtr _loadHousingFunc;
-        
         [UnmanagedFunctionPointer(CallingConvention.ThisCall)]
-        private delegate Int64 LoadHousingFuncDelegate(Int64 a1, Int64 a2);
-        private Hook<LoadHousingFuncDelegate> _loadHousingFuncHook;
+        private delegate Int64 LoadHousingFuncDelegate(long a1, long a2);
+        private readonly Hook<LoadHousingFuncDelegate> _loadHousingFuncHook;
 
         public HousingPos()
         {
@@ -59,11 +57,11 @@ namespace HousingPos
             Config.Save();
             _localizer = new Localizer(Config.UILanguage);
             
-            _loadHousingFunc = Scanner.ScanText("48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 48 89 7C 24 ?? 41 56 48 83 EC 20 48 8B 71 08 48 8B FA");
+            var loadHousingFunc = Scanner.ScanText("48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 48 89 7C 24 ?? 41 56 48 83 EC 20 48 8B 71 08 48 8B FA");
             Condition.ConditionChange += OnConditionChange;
             
             _loadHousingFuncHook = Hook.HookFromAddress<LoadHousingFuncDelegate>(
-                _loadHousingFunc,
+                loadHousingFunc,
                 LoadHousingFuncDetour
             );
             
@@ -85,13 +83,14 @@ namespace HousingPos
             
             ClientState.TerritoryChanged -= TerritoryChanged;
             CommandManager.RemoveHandler("/xhouse");
-            Gui?.Dispose();
+            Gui.Dispose();
+            GC.SuppressFinalize(this);
         }
 
 
-        private static void RefreshFurnitureList(ref List<HousingItem> FurnitureList)
+        private static void RefreshFurnitureList(ref List<HousingItem> furnitureList)
         {
-            foreach (var housingItem in FurnitureList.Where(t => t is { ModelKey: > 0, FurnitureKey: 0 }))
+            foreach (var housingItem in furnitureList.Where(t => t is { ModelKey: > 0, FurnitureKey: 0 }))
             {
                 housingItem.FurnitureKey = (uint)(housingItem.ModelKey + 0x30000);
                 HousingFurniture? furniture = Data.GetExcelSheet<HousingFurniture>().GetRow(housingItem.FurnitureKey);
@@ -278,8 +277,7 @@ namespace HousingPos
                 Config.lastPosPackageTime = DateTime.Now;
                 Config.Save();
             }
-            
-            int cnt = 0;
+
             for (int i = 12; i < posArr.Length && i + 24 < posArr.Length; i += 24)
             {
                 uint furnitureKey = (uint)(BitConverter.ToUInt16(posArr, i) + 0x30000);
@@ -303,7 +301,6 @@ namespace HousingPos
                 var x = BitConverter.ToSingle(posArr, i + 12);
                 var y = BitConverter.ToSingle(posArr, i + 16);
                 var z = BitConverter.ToSingle(posArr, i + 20);
-                cnt++;
                 _housingItemList.Add(new HousingItem(
                         furnitureKey,
                         furniture.ModelKey,
@@ -323,28 +320,27 @@ namespace HousingPos
             Config.DrawScreen = false;
             Config.Save();
         }
-        public void CommandHandler(string command, string arguments)
+
+        private void CommandHandler(string command, string arguments)
         {
             var args = arguments.Trim().Replace("\"", string.Empty);
 
-            if (string.IsNullOrEmpty(args) || args.Equals("config", StringComparison.OrdinalIgnoreCase))
-            {
-                Gui.ConfigWindow.Visible = !Gui.ConfigWindow.Visible;
-                return;
-            }
+            if (!string.IsNullOrEmpty(args) && !args.Equals("config", StringComparison.OrdinalIgnoreCase)) return;
+            
+            Gui.ConfigWindow.Visible = !Gui.ConfigWindow.Visible;
         }
 
-        public void Log(string message, string detail_message = "")
+        public static void Log(string message, string detailMessage = "")
         {
             var msg = $"[{Name}] {message}";
-            PluginLog.Info(detail_message == "" ? msg : detail_message);
+            PluginLog.Info(detailMessage == "" ? msg : detailMessage);
             ChatGui.Print(msg);
         }
-        public void LogError(string message, string detail_message = "")
+        public static void LogError(string message, string detailMessage = "")
         {
             //if (!Config.PrintError) return;
             var msg = $"[{Name}] {message}";
-            PluginLog.Error(detail_message == "" ? msg : detail_message);
+            PluginLog.Error(detailMessage == "" ? msg : detailMessage);
             ChatGui.PrintError(msg);
         }
     }

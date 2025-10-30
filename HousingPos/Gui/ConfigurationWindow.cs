@@ -37,7 +37,7 @@ namespace HousingPos.Gui
         protected override void DrawUi()
         {
             ImGui.SetNextWindowSize(new Vector2(530, 450), ImGuiCond.FirstUseEver);
-            if (!ImGui.Begin($"{Plugin.Name}", ref WindowVisible, ImGuiWindowFlags.NoScrollWithMouse))
+            if (!ImGui.Begin($"{HousingPos.Name}", ref WindowVisible, ImGuiWindowFlags.NoScrollWithMouse))
             {
                 ImGui.End();
                 return;
@@ -106,7 +106,7 @@ namespace HousingPos.Gui
                     if (currentTerritory != Plugin.PreviewTerritory)
                         Config.Previewing = preview;
                     else
-                        Plugin.Log(_localizer.Localize("Exit your house to disable preview."));
+                        HousingPos.Log(_localizer.Localize("Exit your house to disable preview."));
                 }
                 Config.Save();
             }
@@ -260,11 +260,11 @@ namespace HousingPos.Gui
                         str += $"{itemName}\t{itemList.Count(x => x == itemName)}\n";
                     }
                     Win32Clipboard.CopyTextToClipboard(str);
-                    Plugin.Log(String.Format(_localizer.Localize("Copied {0} items to your clipboard."), itemSet.Count));
+                    HousingPos.Log(String.Format(_localizer.Localize("Copied {0} items to your clipboard."), itemSet.Count));
                 }
                 catch (Exception e)
                 {
-                    Plugin.LogError($"Error while exporting all items: {e.Message}");
+                    HousingPos.LogError($"Error while exporting all items: {e.Message}");
                 }
             }
             ImGui.SameLine();
@@ -274,11 +274,11 @@ namespace HousingPos.Gui
                 {
                     string str = JsonConvert.SerializeObject(Config.HousingItemList);
                     Win32Clipboard.CopyTextToClipboard(str);
-                    Plugin.Log(String.Format(_localizer.Localize("Exported {0} items to your clipboard."), Config.HousingItemList.Count));
+                    HousingPos.Log(String.Format(_localizer.Localize("Exported {0} items to your clipboard."), Config.HousingItemList.Count));
                 }
                 catch (Exception e)
                 {
-                    Plugin.LogError($"Error while exporting items: {e.Message}");
+                    HousingPos.LogError($"Error while exporting items: {e.Message}");
                 }
             }
             ImGui.SameLine();
@@ -290,11 +290,11 @@ namespace HousingPos.Gui
                     Config.HousingItemList = JsonConvert.DeserializeObject<List<HousingItem>>(str) ?? [];
                     HousingPos.TranslateFurnitureList(ref Config.HousingItemList);
                     Config.ResetRecord();
-                    Plugin.Log(String.Format(_localizer.Localize("Imported {0} items from your clipboard."), Config.HousingItemList.Count));
+                    HousingPos.Log(String.Format(_localizer.Localize("Imported {0} items from your clipboard."), Config.HousingItemList.Count));
                 }
                 catch (Exception e)
                 {
-                    Plugin.LogError($"Error while importing items: {e.Message}");
+                    HousingPos.LogError($"Error while importing items: {e.Message}");
                 }
             }
             ImGui.SameLine(ImGui.GetColumnWidth() - 80);
@@ -391,7 +391,7 @@ namespace HousingPos.Gui
                     var tempList = new List<HousingItem> { housingItem };
                     string str = JsonConvert.SerializeObject(tempList);
                     Win32Clipboard.CopyTextToClipboard(str);
-                    Plugin.Log(string.Format(_localizer.Localize("Exported {0} items to your clipboard."), tempList.Count));
+                    HousingPos.Log(string.Format(_localizer.Localize("Exported {0} items to your clipboard."), tempList.Count));
                 }
                 ImGui.NextColumn();
             }
