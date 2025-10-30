@@ -23,18 +23,15 @@ namespace HousingPos.Gui
 {
     public class ConfigurationWindow : Window<HousingPos>
     {
-
-        public Configuration Config => Plugin.Config;
+        private Configuration Config => Plugin.Config;
         private readonly string[] _languageList;
         private int _selectedLanguage;
-        private Localizer _localizer;
-        private string CustomTag = string.Empty;
-        private readonly Dictionary<uint, uint> iconToFurniture = new() { };
+        private readonly Localizer _localizer;
 
         public ConfigurationWindow(HousingPos plugin) : base(plugin)
         {
             _localizer = new Localizer(Config.UILanguage);
-            _languageList = new string[] { "en", "zh" };
+            _languageList = ["en", "zh"];
         }
 
         protected override void DrawUi()
@@ -59,7 +56,8 @@ namespace HousingPos.Gui
         }
 
         #region Helper Functions
-        public void DrawIcon(ushort icon, Vector2 size)
+
+        private void DrawIcon(ushort icon, Vector2 size)
         {
             if (icon < 65000)
             {
@@ -77,9 +75,7 @@ namespace HousingPos.Gui
             }
         }
         #endregion
-
-
-        #region Basic UI
+        
         private void DrawGeneralSettings()
         {
             ImGui.TextUnformatted(_localizer.Localize("Language:"));
@@ -215,52 +211,6 @@ namespace HousingPos.Gui
                 }
                 Config.Save();
             }
-            if (ImGui.Button(_localizer.Localize("Cloud Upload")))
-            {
-                Config.UploadItems = Config.HousingItemList;
-                CanUpload = true;
-                //Config.Tags.Clear();
-                Config.UploadName = "";
-                Config.Save();
-            }
-            ImGui.SameLine();
-            if (ImGui.Button(_localizer.Localize("Cloud Download")))
-            {
-                Task<string> strTask = HttpPost.GetMap(Config.DefaultCloudUri);
-                strTask.ContinueWith((t) =>
-                {
-                    try
-                    {
-                        Config.CloudMap = JsonConvert.DeserializeObject<List<CloudMap>>(t.Result);
-                        Config.Save();
-                        CanImport = true;
-                    }
-                    catch (Exception e)
-                    {
-                        Plugin.LogError($"Error Importing from cloud: {e.Message}", e.ToString());
-                    }
-                });
-            }
-            /*
-            ImGui.SameLine();
-            if (ImGui.Button(_localizer.Localize("LeanCloud Import")))
-            {
-                Task<string> strTask = HttpPost.GetMapWithLeanCloud(Config.API_BASE_URL + Config.CLASS_NAME);
-                strTask.ContinueWith((t) =>
-                {
-                    try
-                    {
-                        Config.CloudMap = JsonConvert.DeserializeObject<List<CloudMap>>(JObject.Parse(t.Result)["results"].ToString());
-                        Config.Save();
-                        CanImport = true;
-                    }
-                    catch (Exception e)
-                    {
-                        Plugin.LogError($"Error Importing from cloud: {e.Message}");
-                    }
-                });
-            }
-            */
 
             if (ImGui.Button(_localizer.Localize("Clear")))
             {
@@ -337,15 +287,14 @@ namespace HousingPos.Gui
                 string str = ImGui.GetClipboardText();
                 try
                 {
-                    Config.HousingItemList = JsonConvert.DeserializeObject<List<HousingItem>>(str);
-                    Plugin.TranslateFurnitureList(ref Config.HousingItemList);
+                    Config.HousingItemList = JsonConvert.DeserializeObject<List<HousingItem>>(str) ?? [];
+                    HousingPos.TranslateFurnitureList(ref Config.HousingItemList);
                     Config.ResetRecord();
                     Plugin.Log(String.Format(_localizer.Localize("Imported {0} items from your clipboard."), Config.HousingItemList.Count));
                 }
                 catch (Exception e)
                 {
                     Plugin.LogError($"Error while importing items: {e.Message}");
-                    LoadChocoboSave(str);
                 }
             }
             ImGui.SameLine(ImGui.GetColumnWidth() - 80);
@@ -434,29 +383,15 @@ namespace HousingPos.Gui
                 }
                 ImGui.NextColumn();
             }
-
+            
             if (Config.SingleExport)
             {
                 if (ImGui.Button(_localizer.Localize("Export") + "##Single_" + uniqueID))
                 {
-                    List<HousingItem> tempList = new List<HousingItem>();
-                    tempList.Add(housingItem);
+                    var tempList = new List<HousingItem> { housingItem };
                     string str = JsonConvert.SerializeObject(tempList);
                     Win32Clipboard.CopyTextToClipboard(str);
-                    Plugin.Log(String.Format(_localizer.Localize("Exported {0} items to your clipboard."), tempList.Count));
-                }
-                if(housingItem.children.Count > 0)
-                {
-                    ImGui.SameLine();
-                    if (ImGui.Button(_localizer.Localize("Cloud Upload") + "##Single_" + uniqueID))
-                    {
-                        List<HousingItem> tempList = new List<HousingItem>();
-                        tempList.Add(housingItem);
-                        Config.UploadItems = tempList;
-                        CanUpload = true;
-                        Config.UploadName = "";
-                        Config.Save();
-                    }
+                    Plugin.Log(string.Format(_localizer.Localize("Exported {0} items to your clipboard."), tempList.Count));
                 }
                 ImGui.NextColumn();
             }
@@ -550,13 +485,8 @@ namespace HousingPos.Gui
 
                 ImGui.Separator();
             }
-
         }
-
-        #endregion
-
-
-        #region Draw Screen
+        
         protected override void DrawScreen()
         {
             if (Config.DrawScreen)
@@ -564,11 +494,13 @@ namespace HousingPos.Gui
                 DrawItemOnScreen();
             }
         }
-
+        
         private void DrawItemOnScreen()
         {
-            for (int i = 0; i < Config.HousingItemList.Count(); i++)
+            for (int i = 0; i < Config.HousingItemList.Count; i++)
             {
+                if (HousingPos.ClientState.LocalPlayer == null) continue;
+                
                 var playerPos = HousingPos.ClientState.LocalPlayer.Position;
                 var housingItem = Config.HousingItemList[i];
                 var itemPos = new Vector3(housingItem.X, housingItem.Y, housingItem.Z);
@@ -582,10 +514,10 @@ namespace HousingPos.Gui
                     ImGui.SetNextWindowPos(new Vector2(screenCoords.X, screenCoords.Y));
                     ImGui.SetNextWindowBgAlpha(0.8f);
                     if (ImGui.Begin("HousingItem" + i,
-                        ImGuiWindowFlags.NoDecoration |
-                        ImGuiWindowFlags.AlwaysAutoResize |
-                        ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoMove |
-                        ImGuiWindowFlags.NoFocusOnAppearing | ImGuiWindowFlags.NoNav))
+                            ImGuiWindowFlags.NoDecoration |
+                            ImGuiWindowFlags.AlwaysAutoResize |
+                            ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoMove |
+                            ImGuiWindowFlags.NoFocusOnAppearing | ImGuiWindowFlags.NoNav))
                     {
                         if (Config.Grouping && Config.GroupingList.IndexOf(i) != -1)
                         {
@@ -628,412 +560,5 @@ namespace HousingPos.Gui
                 }
             }
         }
-        #endregion
-
-
-        #region Chocobo Shit
-        private bool LoadChocoboSave(string str)
-        {
-            try
-            {
-                Config.HousingItemList.Clear();
-                var chocoboInput = JsonConvert.DeserializeObject<ChocoboInput>(str);
-                int failed = 0;
-                int successed = 0;
-                if (iconToFurniture.Count == 0)
-                {
-                    var housingFurnitures = HousingPos.Data.GetExcelSheet<HousingFurniture>();
-                    foreach (var furniture in housingFurnitures)
-                    {
-                        var item = furniture.Item.Value;
-                        ushort iconId = item.Icon;
-                        if (!iconToFurniture.ContainsKey(iconId))
-                            iconToFurniture.Add(item.Icon, furniture.RowId);
-                    }
-                }
-                bool oldSave = false;
-                foreach (var chocoboItem in chocoboInput.list)
-                {
-                    var iconIdOrCategoryId = chocoboItem.categoryId;
-                    Nullable<HousingFurniture> furniture = HousingPos.Data.GetExcelSheet<HousingFurniture>().GetRow(iconIdOrCategoryId + 0x30000);
-                    if (furniture == null)
-                    {
-                        oldSave = true;
-                        var furnitureId = iconToFurniture.ContainsKey(iconIdOrCategoryId) ? (int)iconToFurniture[iconIdOrCategoryId] : -1;
-                        if(furnitureId == -1)
-                        {
-                            Plugin.Log($"Cannot find iconIdOrCategoryId:{iconIdOrCategoryId}");
-                            failed += chocoboItem.count;
-                            continue;
-                        }
-                        furniture = HousingPos.Data.GetExcelSheet<HousingFurniture>().GetRow((uint)furnitureId);
-                    }
-                    var item = furniture.Value.Item.Value;
-                    int len = chocoboItem.count;
-                    for (int i = 0; i < len; i++)
-                    {
-                        var x = chocoboItem.posX[i];
-                        var y = chocoboItem.posY[i];
-                        var z = chocoboItem.posZ[i];
-                        var rotation = oldSave ? (float)(Math.Asin(chocoboItem.Rotation[i]) * 2) : chocoboItem.Rotation[i];
-                        if (float.IsNaN(rotation))
-                            rotation = 0;
-                        Config.HousingItemList.Add(new HousingItem(
-                            furniture.Value.RowId, furniture.Value.ModelKey, item.RowId, 0, x, y, z, rotation, item.Name.ToString()));
-                        successed++;
-                    }
-                    Config.ResetRecord();
-                }
-                Plugin.Log(String.Format(_localizer.Localize("Imported {0} chocobo items from your clipboard, {1} failed."), successed, failed));
-                return true;
-            }
-            catch (Exception e)
-            {
-                Plugin.LogError($"Error while importing chocobo save: {e.Message}", e.ToString());
-            }
-            return false;
-        }
-
-        #endregion
-        
-        
-        #region Cloud Upload & Import
-
-        private void DrawImportRow(int i, CloudMap cloudMap)
-        {
-            string uniqueId = i.ToString();
-            string territoryName = "";
-            try
-            {
-                territoryName = HousingPos.Data.GetExcelSheet<TerritoryType>().GetRow((uint)cloudMap.LocationId).PlaceName.Value.Name.ToString();
-            } catch (ArgumentOutOfRangeException)
-            {
-                territoryName = _localizer.Localize("Unknown");
-            }
-            ImGui.Text($"{cloudMap.Name}"); ImGui.NextColumn();
-            ImGui.Text(territoryName); ImGui.NextColumn();
-            ImGui.Text($"{cloudMap.Tags}"); ImGui.NextColumn();
-            if (ImGui.Button(_localizer.Localize("Import") + "##" + uniqueId))
-            {
-                Config.LocationId = cloudMap.LocationId;
-                HousingPos.PluginLog.Info("CloudMap Hash: {0}", cloudMap.Hash);
-                if (cloudMap.Hash != "")
-                {
-                    Task<string> cloudItems = HttpPost.GetItems(Config.DefaultCloudUri, cloudMap.Hash);
-                    cloudItems.ContinueWith((t) => {
-                        string str = t.Result;
-                        //Plugin.Log(str);
-                        try
-                        {
-                            Config.HousingItemList = JsonConvert.DeserializeObject<List<HousingItem>>(str);
-                            Plugin.TranslateFurnitureList(ref Config.HousingItemList);
-                            Config.ResetRecord();
-                            Plugin.Log(String.Format(_localizer.Localize("Imported {0} items from Cloud."), Config.HousingItemList.Count));
-                        }
-                        catch (Exception e)
-                        {
-                            Plugin.LogError($"Error while importing items: {e.Message}", e.ToString());
-                            LoadChocoboSave(str);
-                        }
-                    });
-                }
-                /*
-                if (cloudMap.ObjectId != "")
-                {
-                    Task<string> cloudItems = HttpPost.GetItemsWithLeanCloud(Config.API_BASE_URL + Config.CLASS_NAME, cloudMap.ObjectId);
-                    cloudItems.ContinueWith((t) => {
-                        string str = JObject.Parse(t.Result)["Items"].ToString();
-                        //Plugin.Log(str);
-                        try
-                        {
-                            Config.HousingItemList = JsonConvert.DeserializeObject<List<HousingItem>>(str);
-                            foreach (var item in Config.HousingItemList)
-                            {
-                                try
-                                {
-                                    item.Name = Plugin.Interface.Data.GetExcelSheet<Item>().GetRow(item.ItemKey).Name;
-                                }
-                                catch (Exception e)
-                                {
-                                    Plugin.LogError($"Error while translating item#{item.ItemKey}: {e.Message}");
-                                }
-                            }
-                            Config.ResetRecord();
-                            Plugin.Log(String.Format(_localizer.Localize("Imported {0} items from LeanCloud."), Config.HousingItemList.Count));
-                        }
-                        catch (Exception e)
-                        {
-                            Plugin.LogError($"Error while importing items: {e.Message}");
-                            LoadChocoboSave(str);
-                        }
-                    });
-                }
-                */
-
-            }
-            ImGui.NextColumn();
-        }
-        private void DrawImportList()
-        {
-            int columns = 4;
-            ImGui.Columns(columns, "CloudItemsList", true);
-            ImGui.Separator();
-            ImGui.Text(_localizer.Localize("Name")); ImGui.NextColumn();
-            ImGui.Text(_localizer.Localize("Location")); ImGui.NextColumn();
-            ImGui.Text(_localizer.Localize("Tags")); ImGui.NextColumn();
-            ImGui.Text(_localizer.Localize("Import")); ImGui.NextColumn();
-            ImGui.Separator();
-            for (int i = 0; i < Config.CloudMap.Count(); i++)
-            {
-                if (Config.CloudMap[i] != null)
-                {
-                    DrawImportRow(i, Config.CloudMap[i]);
-                    ImGui.Separator();
-                }
-            }
-            ImGui.Columns(1);
-        }
-        protected override void DrawUploadUi()
-        {
-            uint buf_size = 255;
-            ImGui.SetNextWindowSize(new Vector2(400, 300), ImGuiCond.FirstUseEver);
-            if (ImGui.Begin($"{Plugin.Name} - Upload", ref WindowCanUpload, ImGuiWindowFlags.NoScrollWithMouse))
-            {
-
-                if (ImGui.BeginChild("##SettingUpload"))
-                {
-                    ImGui.TextUnformatted(_localizer.Localize("Server Address:"));
-                    if (Config.ShowTooltips && ImGui.IsItemHovered())
-                        ImGui.SetTooltip(_localizer.Localize("Open server which stores all uploaded data."));
-                    ImGui.SameLine();
-                    ImGui.SetNextItemWidth(ImGui.GetWindowWidth() - ImGui.CalcTextSize(_localizer.Localize("Server Address:")).X - (16 * ImGui.GetIO().FontGlobalScale));
-                    if (ImGui.InputText("##ServerAddr", ref Config.DefaultCloudUri, 255))
-                    {
-                        Config.Save();
-                    }
-                    ImGui.TextUnformatted(_localizer.Localize("Md5 Salt:"));
-                    if (Config.ShowTooltips && ImGui.IsItemHovered())
-                        ImGui.SetTooltip(_localizer.Localize("Salt used to encrypt your user id."));
-                    ImGui.SameLine();
-                    ImGui.SetNextItemWidth(ImGui.GetWindowWidth() - ImGui.CalcTextSize(_localizer.Localize("Md5 Salt:")).X - (16 * ImGui.GetIO().FontGlobalScale));
-                    if (ImGui.InputText("##Md5Salt", ref Config.Md5Salt, 255))
-                    {
-                        Config.Save();
-                    }
-                    /*
-                    ImGui.TextUnformatted(_localizer.Localize("Serverless Api:"));
-                    ImGui.SameLine();
-                    ImGui.SetNextItemWidth(ImGui.GetWindowWidth() - ImGui.CalcTextSize(_localizer.Localize("Serverless Api:")).X - (16 * ImGui.GetIO().FontGlobalScale));
-                    if (ImGui.InputText("##ServerlessApi", ref Config.API_BASE_URL, 255))
-                    {
-                        Config.Save();
-                    }
-                    */
-                    ImGui.Checkbox(_localizer.Localize("Anonymous"), ref Config.Anonymous);
-
-                    ImGui.Text(_localizer.Localize("Upload Name:"));
-                    ImGui.SameLine();
-                    ImGui.SetNextItemWidth(ImGui.GetWindowWidth() - ImGui.CalcTextSize(_localizer.Localize("Upload Name:")).X - (16 * ImGui.GetIO().FontGlobalScale));
-                    ImGui.InputText("##UploadName", ref Config.UploadName, (int)buf_size);
-                    if (Config.Tags.Count() == 0)
-                    {
-                        Config.Tags = new List<string>() { _localizer.Localize("Combination"),
-                        _localizer.Localize("WholeHouse"),
-                        _localizer.Localize("Far Eastern-style"),
-                        _localizer.Localize("Modern-style"),
-                        _localizer.Localize("Plants"),
-                        _localizer.Localize("Loft-style"),
-                        _localizer.Localize("Cartoon-style")};
-                        Config.TagsSelectList = new List<bool>() { false, false, false, false, false, false, false };
-                        Config.Save();
-                    }
-
-                    ImGui.Text(_localizer.Localize("Selected Tags:"));
-                    for (int i = 0; i < Config.Tags.Count(); i++)
-                    {
-                        var showText = Config.Tags[i];
-                        Vector4 Selected = new Vector4(255, 71, 71, 255);
-                        if (Config.TagsSelectList[i])
-                        {
-                            ImGui.SameLine();
-                            ImGui.SetNextItemWidth(ImGui.CalcTextSize(Config.Tags[i]).X);
-                            ImGui.TextColored(Selected, showText);
-                        }
-                    }
-
-                    ImGui.Text(_localizer.Localize("Available Tags:"));
-                    ImGui.SameLine();
-                    for (int i = 0; i < Config.Tags.Count(); i++)
-                    {
-                        if (i % 8 != 0)
-                            ImGui.SameLine();
-                        ImGui.SetNextItemWidth(ImGui.CalcTextSize(Config.Tags[i]).X);
-                        var buttonText = Config.Tags[i];
-                        //Vector4 Unselect = new Vector4(0, 255, 0, 255);
-                        //Vector4 Selected = new Vector4(255, 0, 0, 255);
-                        if (ImGui.RadioButton(_localizer.Localize(buttonText), Config.TagsSelectList[i]))
-                        {
-                            Config.TagsSelectList[i] = !Config.TagsSelectList[i];
-                            Config.Save();
-                        }
-                    }
-                    ImGui.Text(_localizer.Localize("Add Custom Tags:"));
-                    ImGui.SameLine();
-                    ImGui.SetNextItemWidth(50);
-                    ImGui.InputText("##CustomTags", ref this.CustomTag, 20);
-                    if (!string.IsNullOrEmpty(this.CustomTag))
-                    {
-                        ImGui.SameLine();
-                        if (ImGui.Button(_localizer.Localize("Add")))
-                        {
-                            Config.Tags.Add(this.CustomTag);
-                            Config.TagsSelectList.Add(true);
-                            this.CustomTag = string.Empty;
-                            Config.Save();
-                        }
-                    }
-
-                    if (!Config.Anonymous)
-                    {
-                        ImGui.Text(_localizer.Localize("Uploader:"));
-                        ImGui.SameLine();
-                        ImGui.SetNextItemWidth(ImGui.GetWindowWidth() - ImGui.CalcTextSize(_localizer.Localize("Uploader:")).X - (16 * ImGui.GetIO().FontGlobalScale));
-                        ImGui.InputText("##Uploader", ref Config.Uploader, (int)buf_size);
-                    }
-                    else
-                        Config.Uploader = "Anonymous";
-                    ImGui.Text(String.Format(_localizer.Localize("Here are {0} items that will be sent."), Config.UploadItems.Count));
-                    if (ImGui.Button(_localizer.Localize("Send Data")))
-                    {
-                        Config.Save();
-                        if (Config.UploadName.Trim() == "")
-                        {
-                            Plugin.LogError($"Error while Postdata: Empty name cannot be uploaded.");
-                            CanUpload = false;
-                        }
-                        else if (Config.UploadItems.Count() == 0)
-                        {
-                            Plugin.LogError($"Error while Postdata: No items will be uploaded.");
-                            CanUpload = false;
-                        }
-                        else
-                        {
-                            string str = JsonConvert.SerializeObject(Config.UploadItems);
-                            //Plugin.Log(str);
-                            string tags = "";
-                            for (int i = 0; i < Config.Tags.Count(); i++)
-                            {
-                                if (Config.TagsSelectList[i])
-                                    tags += Config.Tags[i] + ",";
-                            }
-                            if (tags.Length > 0)
-                                tags = tags.Remove(tags.Length - 1);
-                            //Plugin.Log(tags);
-                            var cid = HousingPos.ClientState.LocalContentId.ToString();
-
-                            Task<string> posttask = HttpPost.Post(Config.DefaultCloudUri, Config.LocationId, Config.UploadName, str, tags, Config.Uploader, cid, Config.Md5Salt);
-                            CanUpload = false;
-                            Plugin.Log(String.Format(_localizer.Localize("Uploading {0} items to Cloud."), Config.UploadItems.Count));
-                            posttask.ContinueWith((t) => {
-                                try
-                                {
-                                    string res = posttask.Result;
-                                    Plugin.Log(res);
-                                }
-                                catch (AggregateException e)
-                                {
-                                    foreach (var errInner in e.InnerExceptions)
-                                    {
-                                        Plugin.LogError($"Error while Postdata: {errInner.Message}", e.ToString()); //this will call ToString() on the inner execption and get you message, stacktrace and you could perhaps drill down further into the inner exception of it if necessary 
-                                    }
-                                    CanUpload = true;
-                                }
-                            });
-                        }
-
-                    }
-                    /*
-                    ImGui.SameLine();
-                    if (ImGui.Button(_localizer.Localize("Send Data To Leancloud")))
-                    {
-                        Config.Save();
-                        if (Config.UploadItems.Count() == 0)
-                        {
-                            Plugin.LogError($"Error while Postdata: No Items Can Be Upload");
-                            CanUpload = false;
-                        }
-                        else
-                        {
-                            string str = JsonConvert.SerializeObject(Config.UploadItems);
-                            //Plugin.Log(str);
-                            string tags = "";
-                            for (int i = 0; i < Config.Tags.Count(); i++)
-                            {
-                                if (Config.TagsSelectList[i])
-                                    tags += Config.Tags[i] + ",";
-                            }
-                            if (tags.Length > 0)
-                                tags = tags.Remove(tags.Length - 1);
-                            //Plugin.Log(tags);
-                            var cid = Plugin.Interface.ClientState.LocalContentId.ToString();
-                            CanUpload = false;
-                            Task<string> sessionToken = HttpPost.Login(Config.API_BASE_URL,cid);
-                            sessionToken.ContinueWith((t) => {
-                                JObject res = JObject.Parse(t.Result);
-                                Config.SessionToken = res["sessionToken"].ToString();
-                                Config.Save();
-                                Task<string> posttask = HttpPost.PostWithLeanCloud(Config.API_BASE_URL, Config.CLASS_NAME, Config.Location, Config.UploadName, str, tags, Config.Uploader, Config.SessionToken);
-                                    posttask.ContinueWith((tt) => {
-                                    try
-                                    {
-                                        string res2 = tt.Result;
-                                        Plugin.Log(String.Format(_localizer.Localize("Exported {0} items to Cloud."), Config.UploadItems.Count));
-
-                                    }
-                                    catch (Exception e)
-                                    {
-                                        Plugin.LogError($"Error while Postdata: {e.Message}");
-                                        CanUpload = true;
-                                    }
-                                });
-                            });
-                        }
-                    }
-                    */
-                    ImGui.SameLine();
-                    if (ImGui.Button(_localizer.Localize("Cancel")))
-                    {
-                        Config.Save();
-                        CanUpload = false;
-                    }
-                    Config.Save();
-                    ImGui.EndChild();
-                }
-
-                ImGui.End();
-            }
-        }
-        protected override void DrawImportUi()
-        {
-            ImGui.SetNextWindowSize(new Vector2(520, 430), ImGuiCond.FirstUseEver);
-            if (ImGui.Begin($"{Plugin.Name} - Import", ref WindowCanImport, ImGuiWindowFlags.NoScrollWithMouse))
-            {
-                if (CanImport && ImGui.BeginChild("##ImportCloud"))
-                {
-                    DrawImportList();
-                    if (ImGui.Button(_localizer.Localize("Cancel")))
-                    {
-                        CanImport = false;
-                    }
-                    ImGui.EndChild();
-                }
-                ImGui.End();
-            }
-            
-
-        }
-
-        #endregion
-
     }
 }

@@ -17,12 +17,15 @@ namespace HousingPos.Gui
             Language = language;
             LoadZh();
         }
-        public string Localize(string message)
+        public string Localize(string? message)
         {
-            if (message == null) return message;
-            if (Language == "zh") return zh.ContainsKey(message) ? zh[message] : message;
-            if (Language == "en") return en.ContainsKey(message) ? en[message] : message;
-            return message;
+            if (message == null) return "";
+            return Language switch
+            {
+                "zh" => zh.GetValueOrDefault(message, message),
+                "en" => en.GetValueOrDefault(message, message),
+                _ => message
+            };
         }
         private void LoadZh()
         {

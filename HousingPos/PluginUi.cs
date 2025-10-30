@@ -24,8 +24,6 @@ namespace HousingPos
         private void OnOpenConfigUi()
         {
             ConfigWindow.Visible = true;
-            ConfigWindow.CanUpload = false;
-            ConfigWindow.CanImport = false;
         }
 
         public void Dispose()
