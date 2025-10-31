@@ -18,6 +18,8 @@ using System.Globalization;
 using Dalamud.Utility;
 using Dalamud.Logging;
 using Dalamud.Interface.Textures;
+using FFXIVClientStructs.FFXIV.Client.UI.Agent;
+using HousingPos.Utils;
 
 namespace HousingPos.Gui
 {
@@ -281,21 +283,52 @@ namespace HousingPos.Gui
                     HousingPos.LogError($"Error while exporting items: {e.Message}");
                 }
             }
+
+            ImGui.SameLine();
+            if (ImGui.Button(_localizer.Localize("Export to MakePlace")))
+            {
+                try
+                {
+                    string str = MakePlaceConverter.GetMakePlaceJson(Config.HousingItemList, Plugin.HouseSize, Plugin.HouseName);
+                    Win32Clipboard.CopyTextToClipboard(str);
+                    HousingPos.Log(String.Format(_localizer.Localize("Exported {0} items to your clipboard."),
+                        Config.HousingItemList.Count));
+                }
+                catch (Exception e)
+                {
+                    HousingPos.LogError($"Error while exporting items: {e.ToString()}");
+                }
+            }
             ImGui.SameLine();
             if (ImGui.Button(_localizer.Localize("Import")))
             {
                 string str = ImGui.GetClipboardText();
                 try
                 {
-                    Config.HousingItemList = JsonConvert.DeserializeObject<List<HousingItem>>(str) ?? [];
-                    HousingPos.TranslateFurnitureList(ref Config.HousingItemList);
-                    Config.ResetRecord();
-                    HousingPos.Log(String.Format(_localizer.Localize("Imported {0} items from your clipboard."), Config.HousingItemList.Count));
+                    var newList = JsonConvert.DeserializeObject<List<HousingItem>>(str) ?? [];
+                    if (newList.Count > 0)
+                    {
+                        HousingPos.TranslateFurnitureList(ref Config.HousingItemList);
+                        Config.ResetRecord();
+                        HousingPos.Log(string.Format(_localizer.Localize("Imported {0} items from your clipboard."), Config.HousingItemList.Count));
+                        Config.HousingItemList = newList;
+                    }
+                    else
+                    {
+                        HousingPos.LogError("No items found to import.");
+                    }
                 }
                 catch (Exception e)
                 {
                     HousingPos.LogError($"Error while importing items: {e.Message}");
                 }
+            }
+
+            ImGui.SameLine();
+            if (ImGui.Button(_localizer.Localize("Copy Current House")))
+            {
+                Config.HousingItemList = Plugin.HousingItemList;
+                Config.Save();
             }
             ImGui.SameLine(ImGui.GetColumnWidth() - 80);
             if (ImGui.Button(_localizer.Localize(Config.Grouping ? "Grouping" : "Group"))) 

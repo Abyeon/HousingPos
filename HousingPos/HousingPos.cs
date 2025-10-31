@@ -12,6 +12,7 @@ using Dalamud.Hooking;
 using Dalamud.Game.Command;
 using HousingPos.Gui;
 using Dalamud.Game.ClientState.Conditions;
+using HousingPos.Utils;
 
 namespace HousingPos
 {
@@ -40,7 +41,10 @@ namespace HousingPos
         // Texture dictionary for the housing item icons.
         // public readonly Dictionary<ushort, TextureWrap> TextureDictionary = new Dictionary<ushort, TextureWrap>();
         
-        private List<HousingItem> _housingItemList = [];
+        public List<HousingItem> HousingItemList = [];
+        public string HouseSize = "";
+        public string HouseName = "";
+        
         private readonly List<int> _previewPages = [];
         
         public int PreviewTerritory;
@@ -129,18 +133,16 @@ namespace HousingPos
                 return;
             }
 
-            if (_housingItemList.Count > 0 && Config.HousingItemList.Count == 0)
+            if (HousingItemList.Count > 0 && Config.HousingItemList.Count == 0)
             {
-                Log(string.Format(_localizer.Localize("Load {0} furnitures."), _housingItemList.Count));
+                Log(string.Format(_localizer.Localize("Load {0} furnitures."), HousingItemList.Count));
                 
-                RefreshFurnitureList(ref _housingItemList);
+                RefreshFurnitureList(ref HousingItemList);
                 RefreshFurnitureList(ref Config.HousingItemList);
                 
-                Config.HousingItemList = _housingItemList.ToList();
-                Config.HiddenScreenItemHistory = new List<int>();
-                var territoryTypeId = ClientState.TerritoryType;
-                Config.LocationId = territoryTypeId;
-                
+                Config.HousingItemList = HousingItemList.ToList();
+                Config.HiddenScreenItemHistory = [];
+
                 Config.Save();
             }
             else
@@ -158,7 +160,7 @@ namespace HousingPos
             Marshal.Copy(dataPtr, posArr, 0, 12);
             if (BitConverter.ToString(posArr).Replace("-", " ").StartsWith("FF FF FF FF FF FF FF FF"))
             {
-                _housingItemList.Clear();
+                HousingItemList.Clear();
                 Config.DrawScreen = false;
                 Config.Save();
                 return this._loadHousingFuncHook.Original(a1, a2);
@@ -192,76 +194,75 @@ namespace HousingPos
                 for (int i = 12; i < posArr.Length && i + 24 < posArr.Length; i += 24)
                 {
                     var hashIndex = ((i - 12) / 24) + curPage * 100;
-                    if(hashIndex < Config.HousingItemList.Count)
+                    if (hashIndex >= Config.HousingItemList.Count) continue;
+                    
+                    count++;
+                    var item = Config.HousingItemList[hashIndex];
+                    var furniture = Data.GetExcelSheet<HousingFurniture>().GetRow(item.FurnitureKey);
+                    ushort furnitureNetId = (ushort)(item.FurnitureKey - 0x30000);
+                    byte[] itemBytes = new byte[24];
+                    itemBytes[2] = 1;
+                    if (furniture.CustomTalk.RowId > 0)
                     {
-                        count++;
-                        var item = Config.HousingItemList[hashIndex];
-                        var furniture = Data.GetExcelSheet<HousingFurniture>().GetRow(item.FurnitureKey);
-                        ushort furnitureNetId = (ushort)(item.FurnitureKey - 0x30000);
-                        byte[] itemBytes = new byte[24];
-                        itemBytes[2] = 1;
-                        if (furniture.CustomTalk.RowId > 0)
+                        string talk = furniture.CustomTalk.Value.Name.ToString().Split('_')[0];
+                        if (compatibleTalks.Contains(talk))
                         {
-                            string talk = furniture.CustomTalk.Value.Name.ToString().Split('_')[0];
-                            if (compatibleTalks.Contains(talk))
+                            itemBytes[2] = 1;
+                        }
+                        else
+                        {
+                            switch (talk)
                             {
-                                itemBytes[2] = 1;
-                            }
-                            else
-                            {
-                                switch (talk)
-                                {
-                                    case "CmnDefHousingDish":
-                                        itemBytes[2] = 0;
-                                        break;
-                                    case "HouFurOrchestrion":
-                                        itemBytes[2] = 2;
-                                        break;
-                                    case "HouFurAquarium":
-                                        furnitureNetId = 0x1EF;
-                                        itemBytes[2] = 1;
-                                        break;
-                                    case "HouFurVase":
-                                        ushort oldId = furnitureNetId;
-                                        furnitureNetId = oldId switch
-                                        {
-                                            196828 - 0x30000 => 196751 - 0x30000,
-                                            196829 - 0x30000 => 196752 - 0x30000,
-                                            _ => 196753 - 0x30000,
-                                        };
-                                        itemBytes[2] = 1;
-                                        break;
-                                    case "HouFurPlantPot":
-                                        furnitureNetId = 0x160;
-                                        itemBytes[2] = 1;
-                                        break;
-                                    case "HouFurPicture":
-                                    case "HouFurFishprint":
-                                        furnitureNetId = (ushort)(furnitureNetId == 0x222 ? 0x2F0 : 0x1E);
-                                        itemBytes[2] = 1;
-                                        break;
-                                    case "HouFurWallpaperPartition":
-                                        furnitureNetId = 0x20C;
-                                        itemBytes[2] = 1;
-                                        break;
-                                    default:
-                                        PluginLog.Info($"ignore {furniture.Item.Value.Name}:{furniture.CustomTalk.Value.Name}");
-                                        Array.Copy(itemBytes, 0, posArr, i, 24);
-                                        count--;
-                                        continue;
-                                }
+                                case "CmnDefHousingDish":
+                                    itemBytes[2] = 0;
+                                    break;
+                                case "HouFurOrchestrion":
+                                    itemBytes[2] = 2;
+                                    break;
+                                case "HouFurAquarium":
+                                    furnitureNetId = 0x1EF;
+                                    itemBytes[2] = 1;
+                                    break;
+                                case "HouFurVase":
+                                    ushort oldId = furnitureNetId;
+                                    furnitureNetId = oldId switch
+                                    {
+                                        196828 - 0x30000 => 196751 - 0x30000,
+                                        196829 - 0x30000 => 196752 - 0x30000,
+                                        _ => 196753 - 0x30000,
+                                    };
+                                    itemBytes[2] = 1;
+                                    break;
+                                case "HouFurPlantPot":
+                                    furnitureNetId = 0x160;
+                                    itemBytes[2] = 1;
+                                    break;
+                                case "HouFurPicture":
+                                case "HouFurFishprint":
+                                    furnitureNetId = (ushort)(furnitureNetId == 0x222 ? 0x2F0 : 0x1E);
+                                    itemBytes[2] = 1;
+                                    break;
+                                case "HouFurWallpaperPartition":
+                                    furnitureNetId = 0x20C;
+                                    itemBytes[2] = 1;
+                                    break;
+                                default:
+                                    PluginLog.Info($"ignore {furniture.Item.Value.Name}:{furniture.CustomTalk.Value.Name}");
+                                    Array.Copy(itemBytes, 0, posArr, i, 24);
+                                    count--;
+                                    continue;
                             }
                         }
-
-                        BitConverter.GetBytes(furnitureNetId).CopyTo(itemBytes, 0);
-                        itemBytes[4] = item.Stain;
-                        BitConverter.GetBytes(item.Rotate).CopyTo(itemBytes, 8);
-                        BitConverter.GetBytes(item.X).CopyTo(itemBytes, 12);
-                        BitConverter.GetBytes(item.Y).CopyTo(itemBytes, 16);
-                        BitConverter.GetBytes(item.Z).CopyTo(itemBytes, 20);
-                        
-                        Array.Copy(itemBytes, 0, posArr, i, 24);
                     }
+
+                    BitConverter.GetBytes(furnitureNetId).CopyTo(itemBytes, 0);
+                    itemBytes[4] = item.Stain;
+                    BitConverter.GetBytes(item.Rotate).CopyTo(itemBytes, 8);
+                    BitConverter.GetBytes(item.X).CopyTo(itemBytes, 12);
+                    BitConverter.GetBytes(item.Y).CopyTo(itemBytes, 16);
+                    BitConverter.GetBytes(item.Z).CopyTo(itemBytes, 20);
+                        
+                    Array.Copy(itemBytes, 0, posArr, i, 24);
                 }
                 Log(String.Format(_localizer.Localize("Previewing {0} furnitures."), count));
                 PreviewTerritory = ClientState.TerritoryType;
@@ -273,11 +274,14 @@ namespace HousingPos
             Marshal.Copy(dataPtr, posArr, 0, 2416);
             if (DateTime.Now > Config.lastPosPackageTime.AddSeconds(5))
             {
-                _housingItemList.Clear();
+                HousingItemList.Clear();
                 Config.lastPosPackageTime = DateTime.Now;
                 Config.Save();
             }
 
+            HouseSize = TerritoryTools.GetHouseSize();
+            HouseName = TerritoryTools.GetMakePlaceRenovation();
+            
             for (int i = 12; i < posArr.Length && i + 24 < posArr.Length; i += 24)
             {
                 uint furnitureKey = (uint)(BitConverter.ToUInt16(posArr, i) + 0x30000);
@@ -301,7 +305,7 @@ namespace HousingPos
                 var x = BitConverter.ToSingle(posArr, i + 12);
                 var y = BitConverter.ToSingle(posArr, i + 16);
                 var z = BitConverter.ToSingle(posArr, i + 20);
-                _housingItemList.Add(new HousingItem(
+                HousingItemList.Add(new HousingItem(
                         furnitureKey,
                         furniture.ModelKey,
                         item.RowId,
