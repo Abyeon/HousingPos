@@ -54,7 +54,7 @@ public static unsafe class TerritoryTools
     public static string GetDistrict()
     {
         var row = HousingPos.Data.GetExcelSheet<TerritoryType>().GetRow(CorrectedTerritoryTypeId).PlaceNameZone.RowId;
-        HousingPos.Log(row.ToString());
+        //HousingPos.Log(row.ToString());
         return HousingDistricts.GetValueOrDefault(row, row.ToString());
     }
 
@@ -75,7 +75,7 @@ public static unsafe class TerritoryTools
     {
         var man = AgentMap.Instance();
         var id = man->CurrentTerritoryId;
-        HousingPos.Log(id.ToString());
+        //HousingPos.Log(id.ToString());
         return man->CurrentTerritoryId;
     }
 

@@ -154,7 +154,6 @@ namespace HousingPos
         private long LoadHousingFuncDetour(long a1, long a2)
         {
             var dataPtr = (IntPtr)a2;
-            //Log($"Housing data: {a2:x8}");
 
             byte[] posArr = new byte[2416];
             Marshal.Copy(dataPtr, posArr, 0, 12);
@@ -180,8 +179,8 @@ namespace HousingPos
                     curPage++;
                 
                 _previewPages.Add(curPage);
-                List<string> compatibleTalks = new()
-                {
+                List<string> compatibleTalks =
+                [
                     "CmnDefHousingObject",
                     "CmnDefRetainerBell",
                     "ComDefCompanyChest",
@@ -190,7 +189,7 @@ namespace HousingPos
                     "CmnDefMiniGame",
                     "CmnDefCabinet",
                     "HouFurVisitNote"
-                };
+                ];
                 for (int i = 12; i < posArr.Length && i + 24 < posArr.Length; i += 24)
                 {
                     var hashIndex = ((i - 12) / 24) + curPage * 100;
