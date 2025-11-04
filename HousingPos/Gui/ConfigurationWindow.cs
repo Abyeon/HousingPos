@@ -15,6 +15,8 @@ using Lumina.Excel.Sheets;
 using Dalamud.Interface;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
+using Dalamud.Interface.ImGuiFileDialog;
 using Dalamud.Utility;
 using Dalamud.Logging;
 using Dalamud.Interface.Textures;
@@ -30,10 +32,17 @@ namespace HousingPos.Gui
         private int _selectedLanguage;
         private readonly Localizer _localizer;
 
+        private FileDialogManager FileDialogManager { get; }
+
         public ConfigurationWindow(HousingPos plugin) : base(plugin)
         {
             _localizer = new Localizer(Config.UILanguage);
             _languageList = ["en", "zh"];
+
+            FileDialogManager = new FileDialogManager
+            {
+                AddedWindowFlags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoDocking,
+            };
         }
 
         protected override void DrawUi()
@@ -55,6 +64,7 @@ namespace HousingPos.Gui
                 ImGui.EndChild();
             }
             ImGui.End();
+            FileDialogManager.Draw();
         }
 
         #region Helper Functions
@@ -279,9 +289,28 @@ namespace HousingPos.Gui
                     var str = Config.MakePlaceFormatting ? 
                         MakePlaceConverter.GetMakePlaceJson(Config.HousingItemList, Plugin.HouseSize, Plugin.HouseName) : 
                         JsonConvert.SerializeObject(Config.HousingItemList);
-                    
-                    Win32Clipboard.CopyTextToClipboard(str);
-                    HousingPos.Log(String.Format(_localizer.Localize("Exported {0} items to your clipboard."), Config.HousingItemList.Count));
+
+                    if (Config.MakePlaceFormatting)
+                    {
+                        FileDialogManager.SaveFileDialog("Select a Save Location", ".json", "ExportFromHousingPos", "json", (ok, res) =>
+                        {
+                            if (!ok) return;
+                            Config.SaveLocation = res;
+                            Config.Save();
+                            if (Directory.Exists(Config.SaveLocation))
+                            {
+                                throw new Exception("Save file not specified.");
+                            }
+                            
+                            File.WriteAllText(Config.SaveLocation, str);
+                            HousingPos.Log(string.Format(_localizer.Localize("Exported {0} items to file."), Config.HousingItemList.Count));
+                        }, Path.GetDirectoryName(Config.SaveLocation));
+                    }
+                    else
+                    {
+                        Win32Clipboard.CopyTextToClipboard(str);
+                        HousingPos.Log(string.Format(_localizer.Localize("Exported {0} items to your clipboard."), Config.HousingItemList.Count));
+                    }
                 }
                 catch (Exception e)
                 {
@@ -295,9 +324,18 @@ namespace HousingPos.Gui
 
                 if (Config.MakePlaceFormatting)
                 {
-                    MakePlaceConverter.ConvertFromMakePlace(str, ref Config.HousingItemList);
-                    Config.ResetRecord();
-                    HousingPos.Log(string.Format(_localizer.Localize("Imported {0} items from your clipboard."), Config.HousingItemList.Count));
+                    FileDialogManager.OpenFileDialog("Select a Layout File", ".json", (ok, res) =>
+                    {
+                        if (!ok) return;
+                        Config.SaveLocation = res.FirstOrDefault("");
+                        Config.Save();
+                        
+                        var data = File.ReadAllText(Config.SaveLocation);
+                        MakePlaceConverter.ConvertFromMakePlace(data, ref Config.HousingItemList);
+                        
+                        Config.ResetRecord();
+                        HousingPos.Log(string.Format(_localizer.Localize("Imported {0} items."), Config.HousingItemList.Count));
+                    }, 1, Path.GetDirectoryName(Config.SaveLocation));
                 }
                 else
                 {

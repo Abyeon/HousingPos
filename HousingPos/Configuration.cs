@@ -25,6 +25,7 @@ namespace HousingPos
         public List<string> Tags = [];
 
         public bool MakePlaceFormatting = true;
+        public string SaveLocation = "";
         
         public bool BDTH = false;
         public bool SingleExport = false;
