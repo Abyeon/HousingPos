@@ -1,9 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
 using System.Numerics;
+using Dalamud.Bindings.ImGui;
 using HousingPos.Objects;
 using Lumina.Excel.Sheets;
+using Lumina.Extensions;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace HousingPos.Utils;
 
@@ -11,13 +16,10 @@ public static class MakePlaceConverter
 {
     public static Quaternion FromEuler(float rotate)
     {
-        // The Python code `R.from_euler('xyz', [0, 0, -rotate], False)` uses radians,
-        // as specified by the `False` parameter. The order is 'xyz'.
         float roll = 0;
         float pitch = 0;
         float yaw = -rotate;
-
-        // The System.Numerics.Quaternion conversion formula from Euler angles (in radians).
+        
         float cy = (float)Math.Cos(yaw * 0.5);
         float sy = (float)Math.Sin(yaw * 0.5);
         float cp = (float)Math.Cos(pitch * 0.5);
@@ -32,12 +34,55 @@ public static class MakePlaceConverter
             w: (cr * cp * cy + sr * sp * sy)
         );
     }
-    
-    private class MPTransform(Vector3 location, Quaternion rotation, Vector3 scale)
+
+    public static Vector3 ToEulerAngles(Quaternion q)
     {
-        public float[] location = [location.X,  location.Y, location.Z];
-        public float[] rotation = [rotation.X, rotation.Y, rotation.Z, rotation.W];
-        public float[] scale = [scale.X, scale.Y, scale.Z];
+        Vector3 angles = new();
+
+        // roll / x
+        double sinrCosp = 2 * (q.W * q.X + q.Y * q.Z);
+        double cosrCosp = 1 - 2 * (q.X * q.X + q.Y * q.Y);
+        angles.X = (float)Math.Atan2(sinrCosp, cosrCosp);
+
+        // pitch / y
+        double sinp = 2 * (q.W * q.Y - q.Z * q.X);
+        if (Math.Abs(sinp) >= 1)
+        {
+            angles.Y = (float)Math.CopySign(Math.PI / 2, sinp);
+        }
+        else
+        {
+            angles.Y = (float)Math.Asin(sinp);
+        }
+
+        // yaw / z
+        double sinyCosp = 2 * (q.W * q.Z + q.X * q.Y);
+        double cosyCosp = 1 - 2 * (q.Y * q.Y + q.Z * q.Z);
+        angles.Z = (float)Math.Atan2(sinyCosp, cosyCosp);
+
+        return angles;
+    }
+    
+    private class MPTransform
+    {
+        public float[] Location;
+        public float[] Rotation;
+        public float[] Scale;
+
+        public MPTransform(Vector3 location, Quaternion rotation, Vector3 scale)
+        { 
+            Location = [location.X,  location.Y, location.Z];
+            Rotation = [rotation.X, rotation.Y, rotation.Z, rotation.W];
+            Scale = [scale.X, scale.Y, scale.Z];
+        }
+
+        [JsonConstructor]
+        public MPTransform(float[] location, float[] rotation, float[] scale)
+        {
+            Location = location;
+            Rotation = rotation;
+            Scale = scale;
+        }
     }
 
     private static string RgbHexFromUint32(uint color)
@@ -47,9 +92,50 @@ public static class MakePlaceConverter
         return hex == "000000" ? "" : hex;
     }
 
-    private class MPProperties(uint color)
+    private static uint Uint32FromHex(string hex)
     {
-        public string color = RgbHexFromUint32(HousingPos.Data.GetExcelSheet<Stain>().GetRow(color).Color);
+        return uint.Parse(hex, NumberStyles.HexNumber);
+    }
+
+    private static byte ClosestColor(uint targetColor)
+    {
+        var colorList = HousingPos.Data.GetExcelSheet<Stain>();
+        var rgba= ImGui.ColorConvertU32ToFloat4(targetColor);
+        var targetRgb = new Vector3(rgba.Y, rgba.Z, rgba.W);
+        
+        var minDistance = float.MaxValue;
+        byte closestColor = 0;
+
+        foreach (var color in colorList)
+        {
+            var value = color.Color;
+            var colorRgba = ImGui.ColorConvertU32ToFloat4(value);
+            var colorRgb = new Vector3(colorRgba.Y, colorRgba.Z, colorRgba.W);
+            
+            var distance = targetRgb - colorRgb;
+            if (!(distance.LengthSquared() < minDistance)) continue;
+            
+            minDistance = distance.LengthSquared();
+            closestColor = (byte)color.RowId;
+        }
+        
+        return closestColor;
+    }
+
+    private class MPProperties
+    {
+        public string? Color;
+
+        public MPProperties(uint color)
+        {
+            Color = RgbHexFromUint32(HousingPos.Data.GetExcelSheet<Stain>().GetRow(color).Color);
+        }
+        
+        [JsonConstructor]
+        public MPProperties(string color)
+        {
+            Color = color;
+        }
     }
     
     private class MPFurniture(uint itemId, string name, MPTransform transform, MPProperties properties)
@@ -58,6 +144,55 @@ public static class MakePlaceConverter
         public string name = name;
         public MPTransform transform = transform;
         public MPProperties properties = properties;
+    }
+
+    public static void ConvertFromMakePlace(string data, ref List<HousingItem> furniture)
+    {
+        try
+        {
+            var json = JObject.Parse(data);
+            if (json["interiorFurniture"] == null) return;
+
+            var scale = 0.01f;
+            if (json["interiorScale"] != null)
+            {
+                scale = 1 / (float)json["interiorScale"]!;
+            }
+            
+            var mpObjects = json["interiorFurniture"]!.ToObject<List<MPFurniture>>();
+
+            if (mpObjects is not { Count: > 0 }) return;
+            furniture.Clear();
+            
+            foreach (var mpObject in mpObjects)
+            {
+                var furnishingRow = HousingPos.Data.GetExcelSheet<HousingFurniture>()
+                    .FirstOrNull(x => x.Item.Value.RowId == mpObject.itemId);
+                
+                if (furnishingRow == null) continue;
+                
+                var rotation = new Quaternion(mpObject.transform.Rotation[0], mpObject.transform.Rotation[1], mpObject.transform.Rotation[2], mpObject.transform.Rotation[3]);
+                var euler = ToEulerAngles(rotation);
+                var color = string.IsNullOrEmpty(mpObject.properties.Color) ? (byte)0 : ClosestColor(Uint32FromHex(mpObject.properties.Color));
+
+                var newItem = new HousingItem(
+                    furnishingRow.Value.RowId,
+                    furnishingRow.Value.ModelKey,
+                    mpObject.itemId,
+                    color,
+                    mpObject.transform.Location[0] * scale,
+                    mpObject.transform.Location[2] * scale,
+                    mpObject.transform.Location[1] * scale,
+                    -euler.Z,
+                    furnishingRow.Value.Item.Value.Name.ToString());
+                
+                furniture.Add(newItem);
+            }
+        }
+        catch (Exception e)
+        {
+            HousingPos.LogError(e.ToString());
+        }
     }
     
     public static string GetMakePlaceJson(List<HousingItem> furniture, string houseSize, string houseName)
@@ -78,6 +213,6 @@ public static class MakePlaceConverter
         }
         
         var interior = JsonConvert.SerializeObject(interiorFurniture);
-        return $"{{\"lightLevel\":1,\"houseSize\":\"{houseSize}\",\"interiorFixture\":[{{\"level\":\"\",\"type\":\"District\",\"name\":\"{houseName}\",\"itemId\":0,\"color\":\"\"}},],\"metaData\":{{\"version\":139}},\"interiorScale\":100,\"interiorFurniture\":{interior},\"properties\":{{}}}}";
+        return $"{{\"lightLevel\":1,\"houseSize\":\"{houseSize}\",\"interiorFixture\":[{{\"level\":\"\",\"type\":\"District\",\"name\":\"{houseName}\",\"itemId\":0,\"color\":\"\"}}],\"metaData\":{{\"version\":139}},\"interiorScale\":100,\"interiorFurniture\":{interior},\"properties\":{{}}}}";
     }
 }

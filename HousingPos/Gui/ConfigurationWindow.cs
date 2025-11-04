@@ -125,6 +125,8 @@ namespace HousingPos.Gui
             if (ImGui.Checkbox(_localizer.Localize("Draw on screen"), ref Config.DrawScreen)) Config.Save();
             if (Config.ShowTooltips && ImGui.IsItemHovered())
                 ImGui.SetTooltip(_localizer.Localize("Draw items on screen."));
+            ImGui.SameLine();
+            if (ImGui.Checkbox(_localizer.Localize("Use MakePlace Formatting"), ref Config.MakePlaceFormatting)) Config.Save();
             
             if (Config.DrawScreen)
             {
@@ -274,7 +276,10 @@ namespace HousingPos.Gui
             {
                 try
                 {
-                    string str = JsonConvert.SerializeObject(Config.HousingItemList);
+                    var str = Config.MakePlaceFormatting ? 
+                        MakePlaceConverter.GetMakePlaceJson(Config.HousingItemList, Plugin.HouseSize, Plugin.HouseName) : 
+                        JsonConvert.SerializeObject(Config.HousingItemList);
+                    
                     Win32Clipboard.CopyTextToClipboard(str);
                     HousingPos.Log(String.Format(_localizer.Localize("Exported {0} items to your clipboard."), Config.HousingItemList.Count));
                 }
@@ -283,47 +288,40 @@ namespace HousingPos.Gui
                     HousingPos.LogError($"Error while exporting items: {e.Message}");
                 }
             }
-
-            ImGui.SameLine();
-            if (ImGui.Button(_localizer.Localize("Export to MakePlace")))
-            {
-                try
-                {
-                    string str = MakePlaceConverter.GetMakePlaceJson(Config.HousingItemList, Plugin.HouseSize, Plugin.HouseName);
-                    Win32Clipboard.CopyTextToClipboard(str);
-                    HousingPos.Log(String.Format(_localizer.Localize("Exported {0} items to your clipboard."),
-                        Config.HousingItemList.Count));
-                }
-                catch (Exception e)
-                {
-                    HousingPos.LogError($"Error while exporting items: {e.ToString()}");
-                }
-            }
             ImGui.SameLine();
             if (ImGui.Button(_localizer.Localize("Import")))
             {
                 string str = ImGui.GetClipboardText();
-                try
+
+                if (Config.MakePlaceFormatting)
                 {
-                    var newList = JsonConvert.DeserializeObject<List<HousingItem>>(str) ?? [];
-                    if (newList.Count > 0)
-                    {
-                        HousingPos.TranslateFurnitureList(ref Config.HousingItemList);
-                        Config.ResetRecord();
-                        HousingPos.Log(string.Format(_localizer.Localize("Imported {0} items from your clipboard."), Config.HousingItemList.Count));
-                        Config.HousingItemList = newList;
-                    }
-                    else
-                    {
-                        HousingPos.LogError("No items found to import.");
-                    }
+                    MakePlaceConverter.ConvertFromMakePlace(str, ref Config.HousingItemList);
+                    Config.ResetRecord();
+                    HousingPos.Log(string.Format(_localizer.Localize("Imported {0} items from your clipboard."), Config.HousingItemList.Count));
                 }
-                catch (Exception e)
+                else
                 {
-                    HousingPos.LogError($"Error while importing items: {e.Message}");
+                    try
+                    {
+                        var newList = JsonConvert.DeserializeObject<List<HousingItem>>(str) ?? [];
+                        if (newList.Count > 0)
+                        {
+                            HousingPos.TranslateFurnitureList(ref Config.HousingItemList);
+                            Config.ResetRecord();
+                            HousingPos.Log(string.Format(_localizer.Localize("Imported {0} items from your clipboard."), Config.HousingItemList.Count));
+                            Config.HousingItemList = newList;
+                        }
+                        else
+                        {
+                            HousingPos.LogError("No items found to import.");
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        HousingPos.LogError($"Error while importing items: {e.Message}");
+                    }
                 }
             }
-
             ImGui.SameLine();
             if (ImGui.Button(_localizer.Localize("Copy Current House")))
             {

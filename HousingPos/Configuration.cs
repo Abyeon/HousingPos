@@ -24,6 +24,8 @@ namespace HousingPos
         public List<HousingItem> HousingItemList = [];
         public List<string> Tags = [];
 
+        public bool MakePlaceFormatting = true;
+        
         public bool BDTH = false;
         public bool SingleExport = false;
         public int SelectedItemIndex = -1;
