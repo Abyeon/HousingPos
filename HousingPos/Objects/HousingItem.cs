@@ -14,7 +14,7 @@ namespace HousingPos.Objects
         public uint FurnitureKey;
         public ushort ModelKey;
         public uint ItemKey;
-        public byte Stain;
+        public uint Stain;
         public float X;
         public float Y;
         public float Z;
@@ -26,7 +26,7 @@ namespace HousingPos.Objects
         // (radial distance, azimuthal angle, polar angle)
         public Vector4 relative = Vector4.Zero;
 
-        public HousingItem(uint furnitureKey, ushort modelKey, uint itemKey, byte stain, float x, float y, float z, float rotate, string name)
+        public HousingItem(uint furnitureKey, ushort modelKey, uint itemKey, uint stain, float x, float y, float z, float rotate, string name)
         {
             FurnitureKey = furnitureKey;
             ModelKey = modelKey;

@@ -255,7 +255,7 @@ namespace HousingPos
                     }
 
                     BitConverter.GetBytes(furnitureNetId).CopyTo(itemBytes, 0);
-                    itemBytes[4] = item.Stain;
+                    itemBytes[4] = (byte)item.Stain;
                     BitConverter.GetBytes(item.Rotate).CopyTo(itemBytes, 8);
                     BitConverter.GetBytes(item.X).CopyTo(itemBytes, 12);
                     BitConverter.GetBytes(item.Y).CopyTo(itemBytes, 16);

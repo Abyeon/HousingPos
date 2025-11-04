@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Globalization;
 using System.Linq;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface;
 using HousingPos.Objects;
 using Lumina.Excel.Sheets;
 using Lumina.Extensions;
@@ -97,29 +99,41 @@ public static class MakePlaceConverter
         return uint.Parse(hex, NumberStyles.HexNumber);
     }
 
-    private static byte ClosestColor(uint targetColor)
+    private static int ColorDiff(Color c1, Color c2)
+    {
+        return (int)Math.Sqrt((c1.R - c2.R) * (c1.R - c2.R)
+                              + (c1.G - c2.G) * (c1.G - c2.G)
+                              + (c1.B - c2.B) * (c1.B - c2.B));
+    }
+
+    private static uint ClosestColor(Color rgba)
     {
         var colorList = HousingPos.Data.GetExcelSheet<Stain>();
-        var rgba= ImGui.ColorConvertU32ToFloat4(targetColor);
-        var targetRgb = new Vector3(rgba.Y, rgba.Z, rgba.W);
+        HousingPos.Log($"target color: {rgba}");
         
-        var minDistance = float.MaxValue;
-        byte closestColor = 0;
+        
+        var minDistance = 2000;
+        var closestColor = colorList[0];
 
         foreach (var color in colorList)
         {
+            if (!color.Unknown2) continue;
+            
             var value = color.Color;
-            var colorRgba = ImGui.ColorConvertU32ToFloat4(value);
-            var colorRgb = new Vector3(colorRgba.Y, colorRgba.Z, colorRgba.W);
+            var colorRgba = Color.FromArgb((int)value);
             
-            var distance = targetRgb - colorRgb;
-            if (!(distance.LengthSquared() < minDistance)) continue;
-            
-            minDistance = distance.LengthSquared();
-            closestColor = (byte)color.RowId;
+            var distance = ColorDiff(rgba, colorRgba);
+            if (!(distance < minDistance)) continue;
+
+            minDistance = distance;
+            closestColor = color;
         }
         
-        return closestColor;
+        HousingPos.Log($"found uint: {Color.FromArgb((int)closestColor.Color)}");
+        
+        //if (rba == closestColor.Color) HousingPos.Log("YAY!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+        
+        return closestColor.RowId;
     }
 
     private class MPProperties
@@ -173,7 +187,8 @@ public static class MakePlaceConverter
                 
                 var rotation = new Quaternion(mpObject.transform.Rotation[0], mpObject.transform.Rotation[1], mpObject.transform.Rotation[2], mpObject.transform.Rotation[3]);
                 var euler = ToEulerAngles(rotation);
-                var color = string.IsNullOrEmpty(mpObject.properties.Color) ? (byte)0 : ClosestColor(Uint32FromHex(mpObject.properties.Color));
+                var color = string.IsNullOrEmpty(mpObject.properties.Color) ? 0 :
+                    ClosestColor(ColorTranslator.FromHtml("#" + mpObject.properties.Color[..6]));
 
                 var newItem = new HousingItem(
                     furnishingRow.Value.RowId,
