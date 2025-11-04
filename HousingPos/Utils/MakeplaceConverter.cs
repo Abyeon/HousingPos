@@ -109,8 +109,6 @@ public static class MakePlaceConverter
     private static uint ClosestColor(Color rgba)
     {
         var colorList = HousingPos.Data.GetExcelSheet<Stain>();
-        HousingPos.Log($"target color: {rgba}");
-        
         
         var minDistance = 2000;
         var closestColor = colorList[0];
@@ -128,10 +126,6 @@ public static class MakePlaceConverter
             minDistance = distance;
             closestColor = color;
         }
-        
-        HousingPos.Log($"found uint: {Color.FromArgb((int)closestColor.Color)}");
-        
-        //if (rba == closestColor.Color) HousingPos.Log("YAY!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
         
         return closestColor.RowId;
     }
