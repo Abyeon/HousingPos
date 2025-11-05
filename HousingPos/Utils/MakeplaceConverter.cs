@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Globalization;
 using System.Linq;
 using System.Numerics;
+using System.Text.Json;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using HousingPos.Objects;
@@ -67,23 +68,25 @@ public static class MakePlaceConverter
     
     private class MPTransform
     {
-        public float[] Location;
-        public float[] Rotation;
-        public float[] Scale;
+        // ReSharper disable InconsistentNaming
+        // ReSharper disable FieldCanBeMadeReadOnly.Local
+        public List<float> location;
+        public List<float> rotation;
+        public List<float> scale;
 
         public MPTransform(Vector3 location, Quaternion rotation, Vector3 scale)
-        { 
-            Location = [location.X,  location.Y, location.Z];
-            Rotation = [rotation.X, rotation.Y, rotation.Z, rotation.W];
-            Scale = [scale.X, scale.Y, scale.Z];
+        {
+            this.location = [location.X,  location.Y, location.Z];
+            this.rotation = [rotation.X, rotation.Y, rotation.Z, rotation.W];
+            this.scale = [scale.X, scale.Y, scale.Z];
         }
 
         [JsonConstructor]
         public MPTransform(float[] location, float[] rotation, float[] scale)
         {
-            Location = location;
-            Rotation = rotation;
-            Scale = scale;
+            this.location = location.ToList();
+            this.rotation = rotation.ToList();
+            this.scale = scale.ToList();
         }
     }
 
@@ -139,7 +142,7 @@ public static class MakePlaceConverter
             Color = RgbHexFromUint32(HousingPos.Data.GetExcelSheet<Stain>().GetRow(color).Color);
         }
         
-        [JsonConstructor]
+        [System.Text.Json.Serialization.JsonConstructor]
         public MPProperties(string color)
         {
             Color = color;
@@ -179,7 +182,7 @@ public static class MakePlaceConverter
                 
                 if (furnishingRow == null) continue;
                 
-                var rotation = new Quaternion(mpObject.transform.Rotation[0], mpObject.transform.Rotation[1], mpObject.transform.Rotation[2], mpObject.transform.Rotation[3]);
+                var rotation = new Quaternion(mpObject.transform.rotation[0], mpObject.transform.rotation[1], mpObject.transform.rotation[2], mpObject.transform.rotation[3]);
                 var euler = ToEulerAngles(rotation);
                 var color = string.IsNullOrEmpty(mpObject.properties.Color) ? 0 :
                     ClosestColor(ColorTranslator.FromHtml("#" + mpObject.properties.Color[..6]));
@@ -189,9 +192,9 @@ public static class MakePlaceConverter
                     furnishingRow.Value.ModelKey,
                     mpObject.itemId,
                     color,
-                    mpObject.transform.Location[0] * scale,
-                    mpObject.transform.Location[2] * scale,
-                    mpObject.transform.Location[1] * scale,
+                    mpObject.transform.location[0] * scale,
+                    mpObject.transform.location[2] * scale,
+                    mpObject.transform.location[1] * scale,
                     -euler.Z,
                     furnishingRow.Value.Item.Value.Name.ToString());
                 
@@ -213,7 +216,7 @@ public static class MakePlaceConverter
                 item.ItemKey,
                 item.Name, 
                 new MPTransform(
-                    new Vector3(item.X * 100, item.Z * 100, item.Y * 100),
+                    new Vector3(item.X, item.Z, item.Y),
                     FromEuler(item.Rotate), 
                     Vector3.One), 
                 new MPProperties(item.Stain));
@@ -222,6 +225,6 @@ public static class MakePlaceConverter
         }
         
         var interior = JsonConvert.SerializeObject(interiorFurniture);
-        return $"{{\"lightLevel\":1,\"houseSize\":\"{houseSize}\",\"interiorFixture\":[{{\"level\":\"\",\"type\":\"District\",\"name\":\"{houseName}\",\"itemId\":0,\"color\":\"\"}}],\"metaData\":{{\"version\":139}},\"interiorScale\":100,\"interiorFurniture\":{interior},\"properties\":{{}}}}";
+        return $"{{\"lightLevel\":1,\"houseSize\":\"{houseSize}\",\"interiorFixture\":[{{\"level\":\"\",\"type\":\"District\",\"name\":\"{houseName}\",\"itemId\":0,\"color\":\"\"}}],\"metaData\":{{\"version\":139}},\"interiorScale\":1,\"interiorFurniture\":{interior},\"properties\":{{}}}}";
     }
 }
