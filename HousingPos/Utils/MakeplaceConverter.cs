@@ -4,9 +4,6 @@ using System.Drawing;
 using System.Globalization;
 using System.Linq;
 using System.Numerics;
-using System.Text.Json;
-using Dalamud.Bindings.ImGui;
-using Dalamud.Interface;
 using HousingPos.Objects;
 using Lumina.Excel.Sheets;
 using Lumina.Extensions;
@@ -135,17 +132,17 @@ public static class MakePlaceConverter
 
     private class MPProperties
     {
-        public string? Color;
+        public string? color;
 
         public MPProperties(uint color)
         {
-            Color = RgbHexFromUint32(HousingPos.Data.GetExcelSheet<Stain>().GetRow(color).Color);
+            this.color = RgbHexFromUint32(HousingPos.Data.GetExcelSheet<Stain>().GetRow(color).Color);
         }
         
-        [System.Text.Json.Serialization.JsonConstructor]
+        [JsonConstructor]
         public MPProperties(string color)
         {
-            Color = color;
+            this.color = color;
         }
     }
     
@@ -184,8 +181,8 @@ public static class MakePlaceConverter
                 
                 var rotation = new Quaternion(mpObject.transform.rotation[0], mpObject.transform.rotation[1], mpObject.transform.rotation[2], mpObject.transform.rotation[3]);
                 var euler = ToEulerAngles(rotation);
-                var color = string.IsNullOrEmpty(mpObject.properties.Color) ? 0 :
-                    ClosestColor(ColorTranslator.FromHtml("#" + mpObject.properties.Color[..6]));
+                var color = string.IsNullOrEmpty(mpObject.properties.color) ? 0 :
+                    ClosestColor(ColorTranslator.FromHtml("#" + mpObject.properties.color[..6]));
 
                 var newItem = new HousingItem(
                     furnishingRow.Value.RowId,
