@@ -115,12 +115,12 @@ public static class MakePlaceConverter
 
         foreach (var color in colorList)
         {
-            if (!color.Unknown2) continue;
+            if (!color.IsHousingApplicable) continue;
             
-            var value = color.Color;
+            uint value = color.Color;
             var colorRgba = Color.FromArgb((int)value);
             
-            var distance = ColorDiff(rgba, colorRgba);
+            int distance = ColorDiff(rgba, colorRgba);
             if (!(distance < minDistance)) continue;
 
             minDistance = distance;

@@ -568,9 +568,9 @@ namespace HousingPos.Gui
         {
             for (int i = 0; i < Config.HousingItemList.Count; i++)
             {
-                if (HousingPos.ClientState.LocalPlayer == null) continue;
+                if (HousingPos.ObjectTable.LocalPlayer == null) continue;
                 
-                var playerPos = HousingPos.ClientState.LocalPlayer.Position;
+                var playerPos = HousingPos.ObjectTable.LocalPlayer.Position;
                 var housingItem = Config.HousingItemList[i];
                 var itemPos = new Vector3(housingItem.X, housingItem.Y, housingItem.Z);
                 if (Config.HiddenScreenItemHistory.IndexOf(i) >= 0) continue;

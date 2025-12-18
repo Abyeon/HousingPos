@@ -39,7 +39,7 @@ public static unsafe class TerritoryTools
                 return HousingPos.ClientState.TerritoryType;
             }
     
-            var character = HousingPos.ClientState.LocalPlayer;
+            var character = HousingPos.ObjectTable.LocalPlayer;
             if (character == null || manager->CurrentTerritory == null) return HousingPos.ClientState.TerritoryType;
             
             var territoryType = manager->IndoorTerritory != null
@@ -54,14 +54,13 @@ public static unsafe class TerritoryTools
     public static string GetDistrict()
     {
         var row = HousingPos.Data.GetExcelSheet<TerritoryType>().GetRow(CorrectedTerritoryTypeId).PlaceNameZone.RowId;
-        //HousingPos.Log(row.ToString());
         return HousingDistricts.GetValueOrDefault(row, row.ToString());
     }
 
     public static string GetRenovation()
     {
         var id = GetTerritoryId();
-        var renovation = HousingPos.Data.GetExcelSheet<HousingRenovation>().FirstOrNull(row => row.Unknown1 == id);
+        var renovation = HousingPos.Data.GetExcelSheet<HousingRenovation>().FirstOrNull(row => row.Territory.RowId == id);
         return renovation == null ? "" : renovation.Value.Name.ExtractText();
     }
 
@@ -74,8 +73,6 @@ public static unsafe class TerritoryTools
     public static uint GetTerritoryId()
     {
         var man = AgentMap.Instance();
-        var id = man->CurrentTerritoryId;
-        //HousingPos.Log(id.ToString());
         return man->CurrentTerritoryId;
     }
 

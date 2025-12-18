@@ -7,7 +7,6 @@ using System.Runtime.InteropServices;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
-using Dalamud.Game;
 using Dalamud.Hooking;
 using Dalamud.Game.Command;
 using HousingPos.Gui;
@@ -29,6 +28,7 @@ namespace HousingPos
         [PluginService] public static IGameGui GameGui { get; private set; } = null!;
         [PluginService] private static IChatGui ChatGui { get; set; } = null!;
         [PluginService] public static IClientState ClientState { get; private set; } = null!;
+        [PluginService] public static IObjectTable ObjectTable { get; private set; } = null!;
         [PluginService] public static IDataManager Data { get; private set; } = null!;
         [PluginService] private static ISigScanner Scanner { get; set; } = null!;
         [PluginService] private static IGameInteropProvider Hook { get; set; } = null!;
@@ -61,7 +61,7 @@ namespace HousingPos
             Config.Save();
             _localizer = new Localizer(Config.UILanguage);
             
-            var loadHousingFunc = Scanner.ScanText("48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 48 89 7C 24 ?? 41 56 48 83 EC 20 48 8B 71 08 48 8B FA");
+            IntPtr loadHousingFunc = Scanner.ScanText("48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 48 89 7C 24 ?? 41 56 48 83 EC 20 48 8B 71 08 48 8B FA");
             Condition.ConditionChange += OnConditionChange;
             
             _loadHousingFuncHook = Hook.HookFromAddress<LoadHousingFuncDelegate>(
