@@ -22,8 +22,6 @@ namespace HousingPos
         public Configuration Config { get; private set; }
 
         [PluginService] public static ICommandManager CommandManager { get; private set; } = null!;
-        [PluginService] public static IFramework Framework { get; private set; } = null!;
-        [PluginService] public static ISigScanner SigScanner { get; private set; } = null!;
         [PluginService] public static IDalamudPluginInterface Interface { get; private set; } = null!;
         [PluginService] public static IGameGui GameGui { get; private set; } = null!;
         [PluginService] private static IChatGui ChatGui { get; set; } = null!;
