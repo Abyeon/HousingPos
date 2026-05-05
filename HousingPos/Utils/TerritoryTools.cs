@@ -26,7 +26,8 @@ public static unsafe class TerritoryTools
         { "Oasis Style", "Goblet" },
         { "Far Eastern Style", "Shirogane" },
         { "Highland Style", "Empyreum" },
-        { "Minimalist Style", "Minimalist" }
+        { "Minimalist Style", "Minimalist" },
+        { "Dark Minimalist Style", "Dark Minimalist" }
     };
     
     private static uint CorrectedTerritoryTypeId

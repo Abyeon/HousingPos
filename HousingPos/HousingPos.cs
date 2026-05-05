@@ -4,6 +4,7 @@ using System.Linq;
 using Lumina.Excel.Sheets;
 using HousingPos.Objects;
 using System.Runtime.InteropServices;
+using Dalamud.Game.ClientState;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
@@ -45,7 +46,7 @@ namespace HousingPos
         
         private readonly List<int> _previewPages = [];
         
-        public int PreviewTerritory;
+        public uint PreviewTerritory;
 
         [UnmanagedFunctionPointer(CallingConvention.ThisCall)]
         private delegate Int64 LoadHousingFuncDelegate(long a1, long a2);
@@ -74,16 +75,16 @@ namespace HousingPos
                 HelpMessage = "/xhouse - load housing item list."
             });
             Gui = new PluginUi(this);
-            ClientState.TerritoryChanged += TerritoryChanged;
+            ClientState.ZoneInit += ZoneInit;
         }
-        
+
         public void Dispose()
         {
             Condition.ConditionChange -= OnConditionChange;
             _loadHousingFuncHook.Disable();
             _loadHousingFuncHook.Dispose();
-            
-            ClientState.TerritoryChanged -= TerritoryChanged;
+
+            ClientState.ZoneInit -= ZoneInit;
             CommandManager.RemoveHandler("/xhouse");
             Gui.Dispose();
             GC.SuppressFinalize(this);
@@ -276,6 +277,7 @@ namespace HousingPos
                 Config.Save();
             }
 
+            
             HouseSize = TerritoryTools.GetHouseSize();
             HouseName = TerritoryTools.GetMakePlaceRenovation();
             
@@ -316,7 +318,8 @@ namespace HousingPos
             }
             return this._loadHousingFuncHook.Original(a1, a2);
         }
-        private void TerritoryChanged(ushort e)
+        
+        private void ZoneInit(ZoneInitEventArgs obj)
         {
             Config.DrawScreen = false;
             Config.Save();

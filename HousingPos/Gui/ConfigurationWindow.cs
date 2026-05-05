@@ -286,7 +286,7 @@ namespace HousingPos.Gui
             {
                 try
                 {
-                    var str = Config.MakePlaceFormatting ? 
+                    string str = Config.MakePlaceFormatting ? 
                         MakePlaceConverter.GetMakePlaceJson(Config.HousingItemList, Plugin.HouseSize, Plugin.HouseName) : 
                         JsonConvert.SerializeObject(Config.HousingItemList);
 
